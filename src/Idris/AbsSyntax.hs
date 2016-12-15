@@ -1783,27 +1783,27 @@ implicitise auto syn ignore ist tm = -- trace ("INCOMING " ++ showImp True tm) $
 
 -- | Add implicit arguments in function calls
 addImplPat :: IState -> PTerm -> PTerm
-addImplPat = addImpl' True [] [] []
+addImplPat = addImpl' True True [] [] []
 
 addImplBound :: IState -> [Name] -> PTerm -> PTerm
-addImplBound ist ns = addImpl' False ns [] [] ist
+addImplBound ist ns = addImpl' True False ns [] [] ist
 
 addImplBoundInf :: IState -> [Name] -> [Name] -> PTerm -> PTerm
-addImplBoundInf ist ns inf = addImpl' False ns inf [] ist
+addImplBoundInf ist ns inf = addImpl' True False ns inf [] ist
 
 -- | Add the implicit arguments to applications in the term [Name]
 -- gives the names to always expend, even when under a binder of that
 -- name (this is to expand methods with implicit arguments in
 -- dependent interfaces).
 addImpl :: [Name] -> IState -> PTerm -> PTerm
-addImpl = addImpl' False [] []
+addImpl = addImpl' True False [] []
 
 -- TODO: in patterns, don't add implicits to function names guarded by constructors
 -- and *not* inside a PHidden
 
-addImpl' :: Bool -> [Name] -> [Name] -> [Name] -> IState -> PTerm -> PTerm
-addImpl' inpat env infns imp_meths ist ptm
-   = ai inpat False (zip env (repeat Nothing)) [] (mkUniqueNames env [] ptm)
+addImpl' :: Bool -> Bool -> [Name] -> [Name] -> [Name] -> IState -> PTerm -> PTerm
+addImpl' uniquify inpat env infns imp_meths ist ptm
+   = ai inpat False (zip env (repeat Nothing)) [] (if uniquify then (mkUniqueNames env [] ptm) else ptm)
   where
     topname = case ptm of
                    PRef _ _ n -> n

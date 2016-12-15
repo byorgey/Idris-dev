@@ -30,7 +30,7 @@ import Debug.Trace
 -- provided explicitly from new clause generation.
 mkPatTm :: PTerm -> Idris Term
 mkPatTm t = do i <- getIState
-               let timp = addImpl' True [] [] [] i t
+               let timp = addImpl' True True [] [] [] i t
                evalStateT (toTT (mapPT deNS timp)) 0
   where
     toTT (PRef _ _ n) = do i <- lift getIState
