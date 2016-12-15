@@ -31,6 +31,7 @@ import Util.System
 import Control.Applicative
 import Control.Monad (liftM3)
 import Control.Monad.State
+import qualified Control.Monad.Except as Exc
 import Data.Char
 import Data.Either
 import Data.Generics.Uniplate.Data (descend, descendM)
@@ -2410,8 +2411,24 @@ shadow n n' t = sm 0 t where
 -- | Rename any binders which are repeated (so that we don't have to
 -- mess about with shadowing anywhere else).
 mkUniqueNames :: [Name] -> [(Name, Name)] -> PTerm -> PTerm
-mkUniqueNames env shadows tm
-      = evalState (mkUniq 0 initMap tm) (S.fromList env) where
+mkUniqueNames env shadows tm =
+  case mkUniqueNames' True env shadows tm of
+
+    -- Can't happen since if shadowing is allowed, mkUniqueNames'
+    -- will just happily rename things and never throw an error.
+    Left _   -> error "Can't happen in mkUniqueNames"
+
+    Right tm -> tm
+
+-- | Rename any binders which are repeated (so that we don't have to
+--   mess about with shadowing anywhere else).  The first argument
+--   specifies whether shadowing is allowed for names bound by
+--   Pi-types; it is set to False when calling mkUniqueNames' on a
+--   top-level type declaration, where shadowing is disallowed for
+--   names bound by Pi-types, since they can be documented.
+mkUniqueNames' :: Bool -> [Name] -> [(Name, Name)] -> PTerm -> Either Err PTerm
+mkUniqueNames' shadowsAllowed env shadows tm
+      = evalState (Exc.runExceptT $ mkUniq 0 initMap tm) (S.fromList env) where
 
   initMap = M.fromList shadows
 
@@ -2432,7 +2449,7 @@ mkUniqueNames env shadows tm
   mkUniqT _ nmap tac = return tac
 
   mkUniq :: Int -- ^ The number of quotations that we're under
-         -> M.Map Name Name -> PTerm -> State (S.Set Name) PTerm
+         -> M.Map Name Name -> PTerm -> Exc.ExceptT Err (State (S.Set Name)) PTerm
   mkUniq 0 nmap (PLam fc n nfc ty sc)
          = do env <- get
               (n', sc') <-
@@ -2450,7 +2467,11 @@ mkUniqueNames env shadows tm
          = do env <- get
               (n', sc') <-
                     if n `S.member` env
-                       then do let n' = uniqueNameSet (initN n (S.size env))
+                       then do when (not shadowsAllowed)
+                                 $ Exc.throwError . At fc . Msg
+                                 $ "Duplicate name " ++ show n
+                                   ++ " is not allowed in a top-level type."
+                               let n' = uniqueNameSet (initN n (S.size env))
                                                       (S.union env inScope)
                                return (n', sc) -- shadow n n' sc)
                        else return (n, sc)
