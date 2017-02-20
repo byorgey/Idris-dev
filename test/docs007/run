@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+${IDRIS:-idris} $@ --quiet --port none --nocolor docs007.idr < input
+rm *.ibc
+
+# See https://github.com/idris-lang/Idris-dev/issues/3419
+
