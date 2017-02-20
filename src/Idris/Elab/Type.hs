@@ -71,9 +71,6 @@ buildType info syn fc opts n ty' = do
          ty' <- addUsingConstraints syn fc ty'
          ty' <- addUsingImpls syn n fc ty'
 
-         -- Add implicits, but don't rename anything.
-         let ity = addImpl' False False [] [] (imp_methods syn) i ty'
-
          -- For top-level Pi types, we do *not* allow duplicate names
          -- for binders (even if they don't even actually shadow each
          -- other lexically), because such duplicate names can cause
@@ -81,7 +78,13 @@ buildType info syn fc opts n ty' = do
          -- "mkUniqueNames' False" instead of just
          -- "mkUniqueNames". See
          -- https://github.com/idris-lang/Idris-dev/issues/3419 .
-         ty <- either throwError return $ mkUniqueNames' False [] [] ity
+         either throwError return $ mkUniqueNames' False [] [] ty'
+
+         -- Add implicits, but don't rename anything.
+         let ity = addImpl' False False [] [] (imp_methods syn) i ty'
+
+
+         let ty = mkUniqueNames [] [] ity
 
          logElab 5 $ show n ++ " type pre-addimpl " ++ showTmImpls ty'
          logElab 5 $ "with methods " ++ show (imp_methods syn)
